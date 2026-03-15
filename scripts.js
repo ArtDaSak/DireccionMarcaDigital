@@ -1,3 +1,7 @@
+const ExternalLinks = {
+  editingPlans: "https://artdasak.github.io/PlanesDeEdicion/",
+};
+
 document.addEventListener("DOMContentLoaded", () => {
   const themeToggleBtn = document.getElementById("theme-toggle");
   const savedTheme = localStorage.getItem("theme");
@@ -14,6 +18,10 @@ document.addEventListener("DOMContentLoaded", () => {
     document.documentElement.setAttribute("data-theme", newTheme);
     localStorage.setItem("theme", newTheme);
   });
+
+  document.querySelectorAll("[data-editing-link='true']").forEach((link) => {
+    link.href = ExternalLinks.editingPlans;
+  });
 });
 
 const PricingConfig = {
@@ -28,10 +36,7 @@ const PricingConfig = {
     advisory2: { name: "Solo asesoría — 2 sesiones", monthlyPrice: 287000 },
     editingBasic: { name: "Solo edición — Básico", monthlyPrice: 747000 },
     editingStandard: { name: "Solo edición — Estándar", monthlyPrice: 1797000 },
-    editingGrowth: { name: "Solo edición — Growth", monthlyPrice: 3097000 },
-    strategyEditingBasic: { name: "Estrategia + edición — Básico", monthlyPrice: 997000 },
-    strategyEditingStandard: { name: "Estrategia + edición — Estándar", monthlyPrice: 2047000 },
-    strategyEditingGrowth: { name: "Estrategia + edición — Growth", monthlyPrice: 3347000 },
+    editingAdvanced: { name: "Edición + estrategia — Plan Avanzado", monthlyPrice: 3097000 },
   },
   extras: {
     extraSession: 97000,
@@ -90,8 +95,12 @@ function GetSuggestion({ planKey, continuityKey, totalStart }) {
     return "Si luego quieres mantener la claridad sin cargar con todo el peso operativo, la asesoría mensual suele ser la ruta de continuidad más ligera.";
   }
 
-  if (continuityKey.startsWith("editing") || continuityKey.startsWith("strategyEditing")) {
-    return "Esta ruta funciona mejor cuando el cliente puede grabar con constancia y necesita velocidad para publicar.";
+  if (continuityKey === "editingAdvanced") {
+    return "Esta ruta es la más completa si después del mes 1 quieres mantener edición, dirección de contenido, hooks, guiones y optimización dentro del plan Avanzado.";
+  }
+
+  if (continuityKey.startsWith("editing")) {
+    return "Esta continuidad funciona mejor cuando ya tienes claridad estratégica y lo que necesitas es delegar la parte audiovisual para publicar con constancia.";
   }
 
   return "Tu ruta combina construcción inicial y continuidad de forma coherente con una escalera clara de valor.";
@@ -160,10 +169,6 @@ document.addEventListener("DOMContentLoaded", () => {
     extraRevisions: 0,
     rushMode: false,
   };
-
-  function clamp(value) {
-    return Math.max(0, Math.floor(Number(value) || 0));
-  }
 
   function render() {
     const result = CalculateRoutePrice(state);
