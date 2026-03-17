@@ -137,7 +137,7 @@ function GetSuggestion(state, result) {
   if (state.planKey === "basic" && (result.items.extraSessions >= 4 || result.items.networksCount >= 2)) {
     return {
       tone: "warning",
-      text: "Por el nivel de apoyo que estás sumando, puede convenirte revisar el plan Estándar: muchas veces te permite arrancar con una base mejor montada desde el principio y avanzar con menos fricción.",
+      text: "Por el nivel de apoyo que estás sumando, puede convenirte revisar el plan Estándar: muchas veces te permite arrancar con una base mejor implementada desde el principio y avanzar con menos fricción.",
     };
   }
 
