@@ -1285,7 +1285,8 @@ button.plan-cta {
   }
 }
 
-@media (min-width: 640px) {
+/* On tablets and desktops up to 1100px, we prefer 2 columns because the customizer itself is split in 2 */
+@media (min-width: 1100px) {
   .network-selector {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1298,7 +1299,7 @@ button.plan-cta {
   gap: 0.75rem;
   justify-content: flex-start;
   width: 100%;
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 0.6rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-light);
   background: var(--bg-page);
@@ -1332,8 +1333,11 @@ button.plan-cta {
 }
 
 .network-label {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .network-chip-other::after {
