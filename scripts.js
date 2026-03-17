@@ -22,13 +22,116 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-editing-link='true']").forEach((link) => {
     link.href = ExternalLinks.editingPlans;
   });
+
+  // INFO BUBBLES: "Ideal para"
+  const bubbleTriggers = document.querySelectorAll(".info-bubble-trigger");
+  
+  bubbleTriggers.forEach(trigger => {
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation(); // prevent closing immediately
+      const content = trigger.nextElementSibling;
+      const isVisible = content.classList.contains("is-visible");
+      
+      // Close all others
+      document.querySelectorAll(".info-bubble-content").forEach(c => c.classList.remove("is-visible"));
+      document.querySelectorAll(".info-bubble-trigger").forEach(t => t.classList.remove("is-active"));
+
+      if (!isVisible) {
+        content.classList.add("is-visible");
+        trigger.classList.add("is-active");
+      }
+    });
+  });
+
+  // Global click to close bubbles
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".info-bubble-content").forEach(c => c.classList.remove("is-visible"));
+    document.querySelectorAll(".info-bubble-trigger").forEach(t => t.classList.remove("is-active"));
+  });
+
+  // TAGLINES: "Ver más" Functionality
+  const taglineToggles = document.querySelectorAll(".btn-tagline-toggle");
+  
+  function resetAllTaglines() {
+    document.querySelectorAll(".plan-tagline").forEach(tagline => {
+      tagline.classList.remove("is-expanded");
+      const actions = tagline.nextElementSibling;
+      if (actions && actions.classList.contains("tagline-actions")) {
+        const btn = actions.querySelector(".btn-tagline-toggle");
+        if (btn) btn.textContent = "Ver más";
+        actions.style.display = "flex";
+      }
+    });
+
+    // Re-check overflow after reset
+    checkAllTaglineOverflow();
+  }
+
+  function checkAllTaglineOverflow() {
+    document.querySelectorAll(".tagline-actions").forEach(actions => {
+      const tagline = actions.previousElementSibling;
+      const isExpanded = tagline.classList.contains("is-expanded");
+      
+      if (!isExpanded) {
+        const style = window.getComputedStyle(tagline);
+        const lineHeight = parseFloat(style.lineHeight);
+        const maxHeight = lineHeight * 2.8; 
+        
+        if (tagline.scrollHeight <= maxHeight) {
+          actions.style.display = "none";
+        } else {
+          actions.style.display = "flex";
+          const btn = actions.querySelector(".btn-tagline-toggle");
+          if (btn) btn.textContent = "Ver más";
+        }
+      }
+    });
+  }
+
+  taglineToggles.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const actions = btn.closest(".tagline-actions");
+      const tagline = actions.previousElementSibling;
+      const isExpanded = tagline.classList.toggle("is-expanded");
+      btn.textContent = isExpanded ? "Ver menos" : "Ver más";
+    });
+  });
+
+  // Initial Check
+  checkAllTaglineOverflow();
+
+  // Accordion Synchronized Functionality
+  const accordionTriggers = document.querySelectorAll(".accordion-trigger");
+  
+  accordionTriggers.forEach(trigger => {
+    trigger.addEventListener("click", () => {
+      // RESET TAGLINES when clicking any accordion
+      resetAllTaglines();
+
+      const parentGroup = trigger.closest(".accordion-group");
+      const category = parentGroup.dataset.accordion;
+      const isAlreadyActive = parentGroup.classList.contains("is-active");
+
+      // Reset all groups first
+      document.querySelectorAll(".accordion-group").forEach(group => {
+        group.classList.remove("is-active");
+      });
+
+      // If the clicked one wasn't active, activate all groups with the same category
+      if (!isAlreadyActive) {
+        document.querySelectorAll(`.accordion-group[data-accordion="${category}"]`).forEach(group => {
+          group.classList.add("is-active");
+        });
+      }
+    });
+  });
 });
 
 const PricingConfig = {
   plans: {
     basic: { name: "Básico", basePrice: 597000 },
     standard: { name: "Estándar", basePrice: 1297000 },
-    premium: { name: "Premium", basePrice: 1897000 },
+    premium: { name: "Premium", basePrice: 1997000 },
   },
   continuity: {
     none: { name: "No continuar por ahora", monthlyPrice: 0 },
@@ -88,7 +191,7 @@ function CalculateRoutePrice({ planKey, continuityKey, extraSessions, extraNetwo
 
 function GetSuggestion({ planKey, continuityKey, totalStart }) {
   if (planKey === "basic" && totalStart >= 1000000) {
-    return "Con este nivel de inversión inicial, podrías evaluar Estándar para delegar mejor la implementación desde el mes 1.";
+    return "Con este nivel de inversión inicial, podrías evaluar Estándar para delegar mejor la implementación desde el primer mes.";
   }
 
   if (continuityKey === "none") {
@@ -96,7 +199,7 @@ function GetSuggestion({ planKey, continuityKey, totalStart }) {
   }
 
   if (continuityKey === "editingAdvanced") {
-    return "Esta ruta es la más completa si después del mes 1 quieres mantener edición, dirección de contenido, hooks, guiones y optimización dentro del plan Avanzado.";
+    return "Esta ruta es la más completa si después del primer mes quieres mantener edición, dirección de contenido, hooks, guiones y optimización dentro del plan Avanzado.";
   }
 
   if (continuityKey.startsWith("editing")) {
@@ -112,13 +215,13 @@ function UpdateWhatsappLink(state, result) {
 
   const message = [
     "Hola, quiero cotizar esta ruta de Sistema de Marca Digital:",
-    `- Plan mes 1: ${result.plan.name} (${FormatCop(result.plan.basePrice)})`,
+    `- Plan primer mes: ${result.plan.name} (${FormatCop(result.plan.basePrice)})`,
     `- Sesiones extra: ${result.items.sessions}`,
     `- Redes adicionales: ${result.items.networks}`,
     `- Ajustes extra: ${result.items.revisions}`,
     `- Modo prioritario: ${state.rushMode ? "Sí" : "No"}`,
-    `- Total mes 1: ${FormatCop(result.totalStart)}`,
-    `- Continuidad desde mes 2: ${result.continuity.name}${result.continuity.monthlyPrice ? ` (${FormatCop(result.continuity.monthlyPrice)})` : ""}`,
+    `- Total primer mes: ${FormatCop(result.totalStart)}`,
+    `- Continuidad desde segundo mes: ${result.continuity.name}${result.continuity.monthlyPrice ? ` (${FormatCop(result.continuity.monthlyPrice)})` : ""}`,
   ].join("\n");
 
   btnHire.href = `https://wa.me/573160627549?text=${encodeURIComponent(message)}`;
