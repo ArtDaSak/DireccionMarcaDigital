@@ -1,6 +1,197 @@
+
 const ExternalLinks = {
   editingPlans: "https://artdasak.github.io/PlanesDeEdicion/",
+  editingAdvanced: "https://artdasak.github.io/PlanesDeEdicion/#advanced",
 };
+
+const StorageKey = "digitalGrowthSystemStateV3";
+
+const PricingConfig = {
+  plans: {
+    basic: { name: "Básico", basePrice: 597000 },
+    standard: { name: "Estándar", basePrice: 1297000 },
+    premium: { name: "Premium", basePrice: 1997000 },
+  },
+  continuity: {
+    none: { name: "No continuar por ahora", monthlyPrice: 0 },
+    advisory1: { name: "Asesoría mensual — 1 sesión", monthlyPrice: 157000 },
+    advisory2: { name: "Asesoría mensual — 2 sesiones", monthlyPrice: 287000 },
+    editingBasic: { name: "Solo edición — Básico", monthlyPrice: 747000 },
+    editingStandard: { name: "Solo edición — Estándar", monthlyPrice: 1797000 },
+    editingAdvanced: { name: "Edición con dirección — Plan Avanzado", monthlyPrice: 3097000 },
+  },
+  extras: {
+    extraSession: 117000,
+    extraNetworkMultiplier: 0.37,
+    maxExtraSessions: 5,
+  },
+  networkLabels: {
+    instagram: "Instagram",
+    facebook: "Facebook",
+    tiktok: "TikTok",
+    youtube: "YouTube",
+    other: "Otra red social por definir",
+  },
+};
+
+function FormatCop(value) {
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function Clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function GetSessionDiscount(extraSessions) {
+  if (extraSessions >= 5) {
+    return 0.15;
+  }
+  if (extraSessions >= 4) {
+    return 0.10;
+  }
+  return 0;
+}
+
+function GetDefaultState() {
+  return {
+    planKey: "standard",
+    continuityKey: "none",
+    extraSessions: 0,
+    selectedNetworks: [],
+  };
+}
+
+function LoadState() {
+  try {
+    const raw = localStorage.getItem(StorageKey);
+    if (!raw) return GetDefaultState();
+    const parsed = JSON.parse(raw);
+    return {
+      ...GetDefaultState(),
+      ...parsed,
+      extraSessions: Clamp(Number(parsed.extraSessions || 0), 0, PricingConfig.extras.maxExtraSessions),
+      selectedNetworks: Array.isArray(parsed.selectedNetworks) ? parsed.selectedNetworks : [],
+    };
+  } catch {
+    return GetDefaultState();
+  }
+}
+
+function SaveState(state) {
+  localStorage.setItem(StorageKey, JSON.stringify(state));
+}
+
+function GetSelectedNetworkLabels(selectedNetworks) {
+  return selectedNetworks.map((key) => PricingConfig.networkLabels[key] || key);
+}
+
+function CalculateRoutePrice(state) {
+  const plan = PricingConfig.plans[state.planKey];
+  const continuity = PricingConfig.continuity[state.continuityKey];
+  const extraSessions = Clamp(Number(state.extraSessions || 0), 0, PricingConfig.extras.maxExtraSessions);
+  const selectedNetworks = Array.isArray(state.selectedNetworks) ? state.selectedNetworks : [];
+
+  const sessionsSubtotal = extraSessions * PricingConfig.extras.extraSession;
+  const sessionDiscountPercent = GetSessionDiscount(extraSessions);
+  const sessionDiscountAmount = Math.round(sessionsSubtotal * sessionDiscountPercent);
+  const sessionsCost = sessionsSubtotal - sessionDiscountAmount;
+
+  const networksCount = selectedNetworks.length;
+  const extraNetworksCount = Math.max(0, networksCount - 1);
+  const networksCost = Math.round(plan.basePrice * PricingConfig.extras.extraNetworkMultiplier * extraNetworksCount);
+
+  const totalStart = plan.basePrice + sessionsCost + networksCost;
+  const totalRoute = totalStart + continuity.monthlyPrice;
+
+  return {
+    plan,
+    continuity,
+    items: {
+      extraSessions,
+      sessionsSubtotal,
+      sessionDiscountPercent,
+      sessionDiscountAmount,
+      sessionsCost,
+      selectedNetworks,
+      networksCount,
+      extraNetworksCount,
+      networksCost,
+    },
+    totalStart,
+    totalRoute,
+  };
+}
+
+function GetSuggestion(state, result) {
+  if (state.planKey === "premium" || state.continuityKey === "editingAdvanced") {
+    return {
+      tone: "success",
+      text: "Esta es tu ruta más completa: combina una base más sólida desde el primer mes con una continuidad pensada para sostener la calidad, el criterio y la evolución de tu marca.",
+    };
+  }
+
+  if (state.planKey === "basic" && (result.items.extraSessions >= 4 || result.items.networksCount >= 2)) {
+    return {
+      tone: "warning",
+      text: "Por el nivel de apoyo que estás sumando, puede convenirte revisar el plan Estándar: muchas veces te permite arrancar con una base mejor montada desde el principio y avanzar con menos fricción.",
+    };
+  }
+
+  if (state.planKey === "standard") {
+    return {
+      tone: "info",
+      text: "Esta suele ser la ruta más equilibrada cuando quieres delegar una parte importante del arranque sin irte todavía al nivel de transferencia más profundo del Premium.",
+    };
+  }
+
+  if (state.continuityKey === "none") {
+    return {
+      tone: "info",
+      text: "Puedes dejar abierta la continuidad por ahora y definirla más adelante. Aun así, ya estás organizando con claridad el primer mes de trabajo y el tipo de apoyo que necesitará tu marca después.",
+    };
+  }
+
+  return {
+    tone: "info",
+    text: "Tu ruta está bien alineada: ya tienes un punto de partida claro para el primer mes y una continuidad coherente con el nivel de apoyo que quieres sostener después.",
+  };
+}
+
+function BuildWhatsappMessage(result) {
+  const networkLabels = GetSelectedNetworkLabels(result.items.selectedNetworks);
+  const discountLine = result.items.sessionDiscountAmount > 0
+    ? `> - Descuento por bloque de sesiones: ${FormatCop(result.items.sessionDiscountAmount)}`
+    : null;
+
+  const lines = [
+    "Hola, ArtDäSak, quiero adquirir esta ruta de Dirección de Marca Digital:",
+    `> - Plan del primer mes: ${result.plan.name} (${FormatCop(result.plan.basePrice)})`,
+    `> - Sesiones extra en el primer mes: ${result.items.extraSessions}`,
+  ];
+
+  if (discountLine) {
+    lines.push(discountLine);
+  }
+
+  lines.push(
+    `> - Redes activadas (incluye 1ª): ${networkLabels.length ? networkLabels.join(", ") : "Ninguna"}`,
+    `> - Redes adicionales con costo: ${result.items.extraNetworksCount}`,
+    `- Total del primer mes: ${FormatCop(result.totalStart)}`,
+    `> - Continuidad desde el segundo mes: ${result.continuity.name}${result.continuity.monthlyPrice > 0 ? ` (${FormatCop(result.continuity.monthlyPrice)})` : ""}`,
+    `- Total estimado de la ruta: ${FormatCop(result.totalRoute)}`,
+  );
+
+  return lines.join("\n");
+}
+
+function ScrollToCustomizer() {
+  const section = document.getElementById("customizer-section");
+  section?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   const themeToggleBtn = document.getElementById("theme-toggle");
@@ -23,18 +214,19 @@ document.addEventListener("DOMContentLoaded", () => {
     link.href = ExternalLinks.editingPlans;
   });
 
-  // INFO BUBBLES: "Ideal para"
+  document.querySelectorAll("[data-editing-advanced-link='true']").forEach((link) => {
+    link.href = ExternalLinks.editingAdvanced;
+  });
+
   const bubbleTriggers = document.querySelectorAll(".info-bubble-trigger");
-  
-  bubbleTriggers.forEach(trigger => {
-    trigger.addEventListener("click", (e) => {
-      e.stopPropagation(); // prevent closing immediately
+  bubbleTriggers.forEach((trigger) => {
+    trigger.addEventListener("click", (event) => {
+      event.stopPropagation();
       const content = trigger.nextElementSibling;
       const isVisible = content.classList.contains("is-visible");
-      
-      // Close all others
-      document.querySelectorAll(".info-bubble-content").forEach(c => c.classList.remove("is-visible"));
-      document.querySelectorAll(".info-bubble-trigger").forEach(t => t.classList.remove("is-active"));
+
+      document.querySelectorAll(".info-bubble-content").forEach((item) => item.classList.remove("is-visible"));
+      document.querySelectorAll(".info-bubble-trigger").forEach((item) => item.classList.remove("is-active"));
 
       if (!isVisible) {
         content.classList.add("is-visible");
@@ -43,315 +235,166 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Global click to close bubbles
   document.addEventListener("click", () => {
-    document.querySelectorAll(".info-bubble-content").forEach(c => c.classList.remove("is-visible"));
-    document.querySelectorAll(".info-bubble-trigger").forEach(t => t.classList.remove("is-active"));
+    document.querySelectorAll(".info-bubble-content").forEach((item) => item.classList.remove("is-visible"));
+    document.querySelectorAll(".info-bubble-trigger").forEach((item) => item.classList.remove("is-active"));
   });
 
-  // TAGLINES: "Ver más" Functionality
   const taglineToggles = document.querySelectorAll(".btn-tagline-toggle");
-  
-  function resetAllTaglines() {
-    document.querySelectorAll(".plan-tagline").forEach(tagline => {
-      tagline.classList.remove("is-expanded");
-      const actions = tagline.nextElementSibling;
-      if (actions && actions.classList.contains("tagline-actions")) {
-        const btn = actions.querySelector(".btn-tagline-toggle");
-        if (btn) btn.textContent = "Ver más";
-        actions.style.display = "flex";
-      }
-    });
-
-    // Re-check overflow after reset
-    checkAllTaglineOverflow();
-  }
 
   function checkAllTaglineOverflow() {
-    document.querySelectorAll(".tagline-actions").forEach(actions => {
+    document.querySelectorAll(".tagline-actions").forEach((actions) => {
       const tagline = actions.previousElementSibling;
       const isExpanded = tagline.classList.contains("is-expanded");
-      
+
       if (!isExpanded) {
         const style = window.getComputedStyle(tagline);
         const lineHeight = parseFloat(style.lineHeight);
-        const maxHeight = lineHeight * 2.8; 
-        
+        const maxHeight = lineHeight * 2.8;
+
         if (tagline.scrollHeight <= maxHeight) {
           actions.style.display = "none";
         } else {
           actions.style.display = "flex";
           const btn = actions.querySelector(".btn-tagline-toggle");
-          if (btn) btn.textContent = "Ver más";
+          if (btn) btn.textContent = "... Ver más";
         }
       }
     });
   }
 
-  taglineToggles.forEach(btn => {
+  function resetAllTaglines() {
+    document.querySelectorAll(".plan-tagline").forEach((tagline) => {
+      tagline.classList.remove("is-expanded");
+      const actions = tagline.nextElementSibling;
+      if (actions?.classList.contains("tagline-actions")) {
+        const btn = actions.querySelector(".btn-tagline-toggle");
+        if (btn) btn.textContent = "... Ver más";
+        actions.style.display = "flex";
+      }
+    });
+    checkAllTaglineOverflow();
+  }
+
+  taglineToggles.forEach((btn) => {
     btn.addEventListener("click", () => {
       const actions = btn.closest(".tagline-actions");
       const tagline = actions.previousElementSibling;
       const isExpanded = tagline.classList.toggle("is-expanded");
-      btn.textContent = isExpanded ? "Ver menos" : "Ver más";
+      btn.textContent = isExpanded ? "Ver menos" : "... Ver más";
     });
   });
 
-  // Initial Check
   checkAllTaglineOverflow();
 
-  // Accordion Synchronized Functionality
   const accordionTriggers = document.querySelectorAll(".accordion-trigger");
-  
-  accordionTriggers.forEach(trigger => {
+  accordionTriggers.forEach((trigger) => {
     trigger.addEventListener("click", () => {
-      // RESET TAGLINES when clicking any accordion
       resetAllTaglines();
-
       const parentGroup = trigger.closest(".accordion-group");
       const category = parentGroup.dataset.accordion;
       const isAlreadyActive = parentGroup.classList.contains("is-active");
 
-      // Reset all groups first
-      document.querySelectorAll(".accordion-group").forEach(group => {
-        group.classList.remove("is-active");
-      });
-
-      // If the clicked one wasn't active, activate all groups with the same category
+      document.querySelectorAll(".accordion-group").forEach((group) => group.classList.remove("is-active"));
       if (!isAlreadyActive) {
-        document.querySelectorAll(`.accordion-group[data-accordion="${category}"]`).forEach(group => {
-          group.classList.add("is-active");
-        });
+        document.querySelectorAll(`.accordion-group[data-accordion="${category}"]`).forEach((group) => group.classList.add("is-active"));
       }
     });
   });
-});
 
-const PricingConfig = {
-  plans: {
-    basic: { name: "Básico", basePrice: 597000 },
-    standard: { name: "Estándar", basePrice: 1297000 },
-    premium: { name: "Premium", basePrice: 1997000 },
-  },
-  continuity: {
-    none: { name: "No continuar por ahora", monthlyPrice: 0 },
-    advisory1: { name: "Solo asesoría — 1 sesión", monthlyPrice: 157000 },
-    advisory2: { name: "Solo asesoría — 2 sesiones", monthlyPrice: 287000 },
-    editingBasic: { name: "Solo edición — Básico", monthlyPrice: 747000 },
-    editingStandard: { name: "Solo edición — Estándar", monthlyPrice: 1797000 },
-    editingAdvanced: { name: "Edición + estrategia — Plan Avanzado", monthlyPrice: 3097000 },
-  },
-  extras: {
-    extraSession: 97000,
-    extraRevision: 57000,
-    extraNetworkMultiplier: 0.3,
-    rushPercent: 0.2,
-  },
-};
+  const state = LoadState();
 
-function FormatCop(value) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function CalculateRoutePrice({ planKey, continuityKey, extraSessions, extraNetworks, extraRevisions, rushMode }) {
-  const plan = PricingConfig.plans[planKey];
-  const continuity = PricingConfig.continuity[continuityKey];
-
-  const sessions = Math.max(0, Math.floor(extraSessions || 0));
-  const networks = Math.max(0, Math.floor(extraNetworks || 0));
-  const revisions = Math.max(0, Math.floor(extraRevisions || 0));
-
-  const sessionsCost = sessions * PricingConfig.extras.extraSession;
-  const networksCost = Math.round(plan.basePrice * PricingConfig.extras.extraNetworkMultiplier * networks);
-  const revisionsCost = revisions * PricingConfig.extras.extraRevision;
-
-  const subtotalBeforeRush = plan.basePrice + sessionsCost + networksCost + revisionsCost;
-  const rushCost = rushMode ? Math.round(subtotalBeforeRush * PricingConfig.extras.rushPercent) : 0;
-  const totalStart = subtotalBeforeRush + rushCost;
-
-  return {
-    plan,
-    continuity,
-    items: {
-      sessions,
-      sessionsCost,
-      networks,
-      networksCost,
-      revisions,
-      revisionsCost,
-      rushCost,
-    },
-    totalStart,
-  };
-}
-
-function GetSuggestion({ planKey, continuityKey, totalStart }) {
-  if (planKey === "basic" && totalStart >= 1000000) {
-    return "Con este nivel de inversión inicial, podrías evaluar Estándar para delegar mejor la implementación desde el primer mes.";
-  }
-
-  if (continuityKey === "none") {
-    return "Si luego quieres mantener la claridad sin cargar con todo el peso operativo, la asesoría mensual suele ser la ruta de continuidad más ligera.";
-  }
-
-  if (continuityKey === "editingAdvanced") {
-    return "Esta ruta es la más completa si después del primer mes quieres mantener edición, dirección de contenido, hooks, guiones y optimización dentro del plan Avanzado.";
-  }
-
-  if (continuityKey.startsWith("editing")) {
-    return "Esta continuidad funciona mejor cuando ya tienes claridad estratégica y lo que necesitas es delegar la parte audiovisual para publicar con constancia.";
-  }
-
-  return "Tu ruta combina construcción inicial y continuidad de forma coherente con una escalera clara de valor.";
-}
-
-function UpdateWhatsappLink(state, result) {
-  const btnHire = document.getElementById("btn-hire-custom");
-  if (!btnHire) return;
-
-  const message = [
-    "Hola, quiero cotizar esta ruta de Sistema de Marca Digital:",
-    `- Plan primer mes: ${result.plan.name} (${FormatCop(result.plan.basePrice)})`,
-    `- Sesiones extra: ${result.items.sessions}`,
-    `- Redes adicionales: ${result.items.networks}`,
-    `- Ajustes extra: ${result.items.revisions}`,
-    `- Modo prioritario: ${state.rushMode ? "Sí" : "No"}`,
-    `- Total primer mes: ${FormatCop(result.totalStart)}`,
-    `- Continuidad desde segundo mes: ${result.continuity.name}${result.continuity.monthlyPrice ? ` (${FormatCop(result.continuity.monthlyPrice)})` : ""}`,
-  ].join("\n");
-
-  btnHire.href = `https://wa.me/573160627549?text=${encodeURIComponent(message)}`;
-}
-
-document.addEventListener("DOMContentLoaded", () => {
   const planSelect = document.getElementById("plan-select");
-  if (!planSelect) return;
-
   const continuitySelect = document.getElementById("continuity-select");
   const extraSessionsInput = document.getElementById("extra-sessions");
-  const extraNetworksInput = document.getElementById("extra-networks");
-  const extraRevisionsInput = document.getElementById("extra-revisions");
-  const rushModeSelect = document.getElementById("rush-mode");
-
   const btnSessionsMinus = document.getElementById("btn-sessions-minus");
   const btnSessionsPlus = document.getElementById("btn-sessions-plus");
-  const btnNetworksMinus = document.getElementById("btn-networks-minus");
-  const btnNetworksPlus = document.getElementById("btn-networks-plus");
-  const btnRevisionsMinus = document.getElementById("btn-revisions-minus");
-  const btnRevisionsPlus = document.getElementById("btn-revisions-plus");
+  const networkChips = document.querySelectorAll(".network-chip");
 
   const elBase = document.getElementById("summary-base");
   const rowExtraSessions = document.getElementById("row-extra-sessions");
   const countExtraSessions = document.getElementById("count-extra-sessions");
   const elExtraSessions = document.getElementById("summary-extra-sessions");
-
+  const rowExtraSessionsDiscount = document.getElementById("row-extra-sessions-discount");
+  const elExtraSessionsDiscount = document.getElementById("summary-extra-sessions-discount");
   const rowExtraNetworks = document.getElementById("row-extra-networks");
   const countExtraNetworks = document.getElementById("count-extra-networks");
   const elExtraNetworks = document.getElementById("summary-extra-networks");
-
-  const rowExtraRevisions = document.getElementById("row-extra-revisions");
-  const countExtraRevisions = document.getElementById("count-extra-revisions");
-  const elExtraRevisions = document.getElementById("summary-extra-revisions");
-
-  const rowRush = document.getElementById("row-rush");
-  const elRush = document.getElementById("summary-rush");
+  const rowNetworkNote = document.getElementById("row-network-note");
+  const elNetworkNote = document.getElementById("summary-network-note");
   const elTotalStart = document.getElementById("summary-total-start");
   const elContinuity = document.getElementById("summary-continuity");
+  const elTotalRoute = document.getElementById("summary-total-route");
   const suggestionBox = document.getElementById("upgrade-suggestion");
   const suggestionMessage = document.getElementById("suggestion-message");
+  const btnHire = document.getElementById("btn-hire-custom");
 
-  const state = {
-    planKey: "standard",
-    continuityKey: "none",
-    extraSessions: 0,
-    extraNetworks: 0,
-    extraRevisions: 0,
-    rushMode: false,
-  };
+  function syncControls() {
+    planSelect.value = state.planKey;
+    continuitySelect.value = state.continuityKey;
+    extraSessionsInput.value = state.extraSessions;
+
+    networkChips.forEach((chip) => {
+      const isSelected = state.selectedNetworks.includes(chip.dataset.network);
+      chip.classList.toggle("is-selected", isSelected);
+      chip.setAttribute("aria-pressed", String(isSelected));
+    });
+
+    btnSessionsMinus.disabled = state.extraSessions <= 0;
+    btnSessionsPlus.disabled = state.extraSessions >= PricingConfig.extras.maxExtraSessions;
+  }
 
   function render() {
     const result = CalculateRoutePrice(state);
-
-    extraSessionsInput.value = state.extraSessions;
-    extraNetworksInput.value = state.extraNetworks;
-    extraRevisionsInput.value = state.extraRevisions;
+    syncControls();
 
     elBase.textContent = FormatCop(result.plan.basePrice);
 
-    if (result.items.sessions > 0) {
+    if (result.items.extraSessions > 0) {
       rowExtraSessions.style.display = "flex";
-      countExtraSessions.textContent = result.items.sessions;
+      countExtraSessions.textContent = result.items.extraSessions;
       elExtraSessions.textContent = FormatCop(result.items.sessionsCost);
     } else {
       rowExtraSessions.style.display = "none";
     }
 
-    if (result.items.networks > 0) {
+    if (result.items.sessionDiscountAmount > 0) {
+      rowExtraSessionsDiscount.style.display = "flex";
+      elExtraSessionsDiscount.textContent = `-${FormatCop(result.items.sessionDiscountAmount)}`;
+    } else {
+      rowExtraSessionsDiscount.style.display = "none";
+    }
+
+    if (result.items.extraNetworksCount > 0) {
       rowExtraNetworks.style.display = "flex";
-      countExtraNetworks.textContent = result.items.networks;
+      countExtraNetworks.textContent = result.items.extraNetworksCount;
       elExtraNetworks.textContent = FormatCop(result.items.networksCost);
     } else {
       rowExtraNetworks.style.display = "none";
     }
 
-    if (result.items.revisions > 0) {
-      rowExtraRevisions.style.display = "flex";
-      countExtraRevisions.textContent = result.items.revisions;
-      elExtraRevisions.textContent = FormatCop(result.items.revisionsCost);
+    if (result.items.selectedNetworks.length > 0) {
+      rowNetworkNote.style.display = "flex";
+      elNetworkNote.textContent = GetSelectedNetworkLabels(result.items.selectedNetworks).join(", ");
     } else {
-      rowExtraRevisions.style.display = "none";
-    }
-
-    if (result.items.rushCost > 0) {
-      rowRush.style.display = "flex";
-      elRush.textContent = FormatCop(result.items.rushCost);
-    } else {
-      rowRush.style.display = "none";
+      rowNetworkNote.style.display = "none";
     }
 
     elTotalStart.textContent = FormatCop(result.totalStart);
     elContinuity.textContent = result.continuity.monthlyPrice ? FormatCop(result.continuity.monthlyPrice) : "A elección";
+    elTotalRoute.textContent = FormatCop(result.totalRoute);
 
+    const suggestion = GetSuggestion(state, result);
     suggestionBox.style.display = "flex";
-    suggestionMessage.textContent = GetSuggestion({
-      planKey: state.planKey,
-      continuityKey: state.continuityKey,
-      totalStart: result.totalStart,
-    });
+    suggestionBox.classList.remove("is-info", "is-warning", "is-success");
+    suggestionBox.classList.add(`is-${suggestion.tone}`);
+    suggestionMessage.textContent = suggestion.text;
 
-    UpdateWhatsappLink(state, result);
+    const message = BuildWhatsappMessage(result);
+    btnHire.href = `https://wa.me/573160627549?text=${encodeURIComponent(message)}`;
+
+    SaveState(state);
   }
-
-  btnSessionsMinus?.addEventListener("click", () => {
-    state.extraSessions = Math.max(0, state.extraSessions - 1);
-    render();
-  });
-  btnSessionsPlus?.addEventListener("click", () => {
-    state.extraSessions += 1;
-    render();
-  });
-
-  btnNetworksMinus?.addEventListener("click", () => {
-    state.extraNetworks = Math.max(0, state.extraNetworks - 1);
-    render();
-  });
-  btnNetworksPlus?.addEventListener("click", () => {
-    state.extraNetworks += 1;
-    render();
-  });
-
-  btnRevisionsMinus?.addEventListener("click", () => {
-    state.extraRevisions = Math.max(0, state.extraRevisions - 1);
-    render();
-  });
-  btnRevisionsPlus?.addEventListener("click", () => {
-    state.extraRevisions += 1;
-    render();
-  });
 
   planSelect.addEventListener("change", (event) => {
     state.planKey = event.target.value;
@@ -363,9 +406,42 @@ document.addEventListener("DOMContentLoaded", () => {
     render();
   });
 
-  rushModeSelect.addEventListener("change", (event) => {
-    state.rushMode = event.target.value === "true";
+  btnSessionsMinus.addEventListener("click", () => {
+    state.extraSessions = Clamp(state.extraSessions - 1, 0, PricingConfig.extras.maxExtraSessions);
     render();
+  });
+
+  btnSessionsPlus.addEventListener("click", () => {
+    state.extraSessions = Clamp(state.extraSessions + 1, 0, PricingConfig.extras.maxExtraSessions);
+    render();
+  });
+
+  networkChips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const key = chip.dataset.network;
+      if (state.selectedNetworks.includes(key)) {
+        state.selectedNetworks = state.selectedNetworks.filter((item) => item !== key);
+      } else {
+        state.selectedNetworks = [...state.selectedNetworks, key];
+      }
+      render();
+    });
+  });
+
+  document.querySelectorAll(".js-route-plan").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.planKey = button.dataset.plan;
+      render();
+      ScrollToCustomizer();
+    });
+  });
+
+  document.querySelectorAll(".js-route-continuity").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.continuityKey = button.dataset.continuity;
+      render();
+      ScrollToCustomizer();
+    });
   });
 
   render();
