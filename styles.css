@@ -766,11 +766,11 @@ a, button {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   background-color: var(--bg-card);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-lg);
   -webkit-overflow-scrolling: touch;
   position: relative;
   /* Add indigo glow to match other premium sections */
-  border: 1px solid rgba(129, 140, 248, 0.2);
+  border: 1px solid var(--border-light);
 }
 
 .table-container::before {
@@ -798,7 +798,7 @@ a, button {
 }
 
 .addons-table th {
-  background-color: rgba(11, 13, 23, 0.8); /* var(--bg-page) with transparency */
+  background-color: var(--bg-page);
   backdrop-filter: blur(10px);
   font-weight: 700;
   color: var(--primary);
@@ -806,6 +806,14 @@ a, button {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   border-bottom: 2px solid var(--border-light);
+}
+
+[data-theme="dark"] .addons-table th {
+  background-color: rgba(11, 13, 23, 0.8);
+}
+
+[data-theme="light"] .addons-table th {
+  background-color: rgba(248, 250, 252, 0.8);
 }
 
 .addons-table tbody tr {
