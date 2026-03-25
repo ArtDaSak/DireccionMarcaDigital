@@ -1496,3 +1496,73 @@ button.plan-cta {
     font-size: 0.85rem;
   }
 }
+
+/* PATH BIFURCATION TOGGLE */
+
+.path-toggle-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.path-switch {
+  position: relative;
+  display: inline-flex;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+  padding: 0.35rem;
+  box-shadow: var(--shadow-md);
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.path-btn {
+  position: relative;
+  z-index: 2;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0.85rem 2rem;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  transition: color var(--transition-normal);
+  white-space: nowrap;
+}
+
+.path-btn:hover {
+  color: var(--text-main);
+}
+
+.path-btn.active {
+  color: #fff;
+}
+
+[data-theme="light"] .path-btn.active {
+  color: #fff;
+}
+
+.path-switch-highlight {
+  position: absolute;
+  top: 0.35rem;
+  bottom: 0.35rem;
+  left: 0.35rem; /* Fallback */
+  width: 50%; /* Fallback */
+  background: var(--primary-gradient);
+  border-radius: var(--radius-full);
+  z-index: 1;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), width 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 768px) {
+  .path-btn {
+    font-size: 0.95rem;
+    padding: 0.75rem 1.2rem;
+  }
+}
