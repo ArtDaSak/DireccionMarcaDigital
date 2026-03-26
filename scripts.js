@@ -142,7 +142,7 @@ const PricingConfig = {
           "<strong>Claridad de posicionamiento, mensaje y comunicación</strong> del equipo",
           "<strong>Pilares de contenido</strong> para organizar lo que van a publicar",
           "<strong>Recomendaciones</strong> para sus canales y presencia digital",
-          "<strong>2 sesiones de revisión</strong> para alinear decisiones y resolver dudas"
+          "<strong>3 sesiones de revisión</strong> para alinear decisiones y resolver dudas"
         ],
         actionsTitle: "Qué hacen ustedes",
         actions: [
@@ -179,7 +179,7 @@ const PricingConfig = {
           "<strong>El sistema de contenido estructurado</strong> para empezar a publicar con dirección",
           "<strong>La estructura inicial del mes parcialmente implementada</strong>",
           "<strong>Piezas o plantillas base listas</strong> según el alcance del proyecto",
-          "<strong>2 sesiones de revisión personalizada</strong> para mejorar y ajustar la implementación"
+          "<strong>3 sesiones de revisión personalizada</strong> para mejorar y ajustar la implementación"
         ],
         actionsTitle: "Qué hacen ustedes",
         actions: [
@@ -199,7 +199,7 @@ const PricingConfig = {
       },
       premium: {
         id: "premium",
-        name: "Ruta personalizada",
+        name: "Premium",
         basePrice: 0,
         isCustomQuote: true,
         isPopular: false,
@@ -208,7 +208,7 @@ const PricingConfig = {
         tagline: "<strong>Ruta a medida</strong> para estructuras con mayor complejidad, varias sedes, múltiples responsables o necesidades específicas de implementación y captación.",
         priceAmount: "Cotizamos",
         priceCycle: "según el caso",
-        ctaText: "Elegir Personalizada y continuar",
+        ctaText: "Elegir Premium y continuar",
         ctaClass: "plan-cta-secondary",
         deliverablesTitle: "Qué les entregamos",
         deliverables: [
@@ -567,7 +567,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         <div class="plan-price">
           <span class="price-amount" ${plan.isCustomQuote ? 'style="font-size: 2rem;"' : ''}>${plan.priceAmount}</span>
-          <span class="price-cycle" ${plan.isCustomQuote ? 'style="margin-left: -5px;"' : ''}>${plan.priceCycle}</span>
+          <span class="price-cycle" ${plan.isCustomQuote ? 'style="margin-left: 5px;"' : ''}>${plan.priceCycle}</span>
         </div>
 
         <button class="plan-cta ${plan.ctaClass} js-route-plan" type="button" data-plan="${plan.id}">
